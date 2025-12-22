@@ -1,0 +1,83 @@
+cmake_minimum_required(VERSION 3.20)
+
+project(Translator LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+# Основные заголовочные файлы библиотеки translator
+set(TRANSLATOR_HEADERS
+    include/lexer.h
+    include/parser.h
+    include/stack.h
+    include/token.h
+    include/translator.h
+)
+
+# Библиотека header-only
+add_library(translator INTERFACE)
+
+target_include_directories(translator
+    INTERFACE
+        "${CMAKE_CURRENT_SOURCE_DIR}/include"
+)
+
+target_sources(translator
+    INTERFACE
+        ${TRANSLATOR_HEADERS}
+)
+
+# Группировка файлов в IDE
+source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/include"
+             PREFIX "Header Files"
+             FILES ${TRANSLATOR_HEADERS})
+
+# Исполняемый файл приложения
+add_executable(translator_app
+    include/main.cpp
+)
+target_link_libraries(translator_app PRIVATE translator)
+
+# Опция для включения тестов
+option(ENABLE_TESTS "Build the unit tests" ON)
+
+if(ENABLE_TESTS)
+    enable_testing()
+
+    # Сборка GoogleTest из исходников в папке gtest
+    add_library(gtest STATIC
+        gtest/gtest-all.cc
+    )
+    target_include_directories(gtest PUBLIC
+        "${CMAKE_CURRENT_SOURCE_DIR}/gtest"
+    )
+    target_compile_definitions(gtest PUBLIC
+        GTEST_HAS_TR1_TUPLE=0
+        GTEST_HAS_STD_TUPLE=1
+    )
+
+    # Основная функция для GoogleTest
+    add_library(gtest_main STATIC
+        test/test_main.cpp
+    )
+    target_link_libraries(gtest_main PUBLIC gtest)
+
+    # Тесты translator
+    add_executable(translator_tests
+        test/test_translator.cpp
+    )
+    target_link_libraries(translator_tests PRIVATE translator gtest_main)
+    
+    # Группировка тестовых файлов в IDE
+    source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/test"
+                 PREFIX "Test Files"
+                 FILES test/test_main.cpp test/test_translator.cpp)
+    
+    source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/gtest"
+                 PREFIX "GoogleTest Files"
+                 FILES gtest/gtest-all.cc gtest/gtest.h)
+
+    # Регистрация тестов в CTest
+    add_test(NAME TranslatorTests COMMAND translator_tests)
+endif()
